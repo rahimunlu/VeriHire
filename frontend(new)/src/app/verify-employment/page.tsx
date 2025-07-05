@@ -1,15 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { IDKitWidget, VerificationLevel, ISuccessResult } from '@worldcoin/idkit';
 
-export default function VerifyEmploymentPage() {
+// Separate component that uses useSearchParams
+function VerifyEmploymentContent() {
     const searchParams = useSearchParams();
     const token = searchParams.get("token");
     const [loading, setLoading] = useState(true);
     const [verificationData, setVerificationData] = useState<any>(null);
     const [error, setError] = useState("");
-    const [worldIdLoggedIn, setWorldIdLoggedIn] = useState(false); // Placeholder for World ID login state
+    const [worldIdLoggedIn, setWorldIdLoggedIn] = useState(false);
     const [submitStatus, setSubmitStatus] = useState("");
     const [worldIdProof, setWorldIdProof] = useState<any>(null);
 
@@ -105,5 +106,23 @@ export default function VerifyEmploymentPage() {
                 </>
             )}
         </div>
+    );
+}
+
+// Loading component for Suspense fallback
+function LoadingFallback() {
+    return (
+        <div style={{ maxWidth: 500, margin: "40px auto", padding: 24, textAlign: "center" }}>
+            <div>Loading verification...</div>
+        </div>
+    );
+}
+
+// Main page component with Suspense boundary
+export default function VerifyEmploymentPage() {
+    return (
+        <Suspense fallback={<LoadingFallback />}>
+            <VerifyEmploymentContent />
+        </Suspense>
     );
 } 
