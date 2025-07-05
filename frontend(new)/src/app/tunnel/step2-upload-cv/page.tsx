@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UploadCloud, FileCheck, Loader2, ChevronRight, FileX, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileCheck, Loader2, ChevronRight, FileX, AlertCircle, Shield } from 'lucide-react';
+import { WorldAppLayout } from '@/components/world-app-layout';
+import { useWorldIdVerification } from '@/hooks/use-world-id-verification';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -16,15 +18,14 @@ export default function UploadCvStep() {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
   const [parsedResume, setParsedResume] = useState<any>(null);
+  // World ID verification (automatically redirects if not verified)
+  const { isVerified, nullifier, isConnectedToWorldApp } = useWorldIdVerification();
 
   const handleFileChange = async (file: File | null) => {
     if (!file) return;
 
-    // Check if World ID is verified
-    const worldIdVerified = localStorage.getItem('worldId_verified');
-    const nullifierHash = localStorage.getItem('worldId_nullifier');
-
-    if (!worldIdVerified || !nullifierHash) {
+    // Check if World ID is verified (using global context)
+    if (!isVerified || !nullifier) {
       setError('Please verify your identity with World ID first');
       return;
     }
@@ -55,7 +56,7 @@ export default function UploadCvStep() {
     try {
       const formData = new FormData();
       formData.append('resume', file);
-      formData.append('user_id', nullifierHash);
+      formData.append('user_id', nullifier);
 
       const response = await fetch('/api/candidate/resume/upload', {
         method: 'POST',
@@ -128,125 +129,128 @@ export default function UploadCvStep() {
   };
 
   return (
-    <div className="p-4">
-      <Card className="w-full max-w-md mx-auto border-none shadow-none">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-headline">Upload Your CV</CardTitle>
-          <CardDescription>
-            Let's start by uploading your resume. We accept PDF or DOCX files.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <label
-              htmlFor="cv-upload"
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'border-primary/30 bg-primary/5 hover:bg-primary/10'
-                } ${status === 'uploading' ? 'pointer-events-none' : ''}`}
-            >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                {status === 'idle' && <UploadCloud className="w-10 h-10 mb-3 text-primary" />}
-                {status === 'uploading' && <Loader2 className="w-10 h-10 mb-3 text-primary animate-spin" />}
-                {status === 'success' && <FileCheck className="w-10 h-10 mb-3 text-green-500" />}
-                {status === 'error' && <FileX className="w-10 h-10 mb-3 text-red-500" />}
-
-                <p className="mb-1 text-sm text-muted-foreground">
-                  {status === 'idle' && <><span className="font-semibold text-primary">Click to upload</span> or drag and drop</>}
-                  {status === 'uploading' && 'Uploading and parsing...'}
-                  {status === 'success' && 'Upload Complete!'}
-                  {status === 'error' && 'Upload Failed. Try again.'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {status === 'idle' && 'PDF or DOCX (MAX. 5MB)'}
-                  {fileName && (status === 'uploading' || status === 'success' || status === 'error') && fileName}
-                </p>
-              </div>
-              <input
-                id="cv-upload"
-                type="file"
-                className="hidden"
-                accept=".pdf,.docx"
-                onChange={handleInputChange}
-                disabled={status === 'uploading'}
-              />
-            </label>
-          </motion.div>
-
-          {/* Error display */}
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-destructive" />
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Success info */}
-          {status === 'success' && parsedResume && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <FileCheck className="w-4 h-4 text-green-600" />
-                <p className="text-sm font-medium text-green-800">Resume parsed successfully!</p>
-              </div>
-              <div className="text-xs text-green-700 space-y-1">
-                {parsedResume.workExperience && parsedResume.workExperience.length > 0 && (
-                  <p>• Found {parsedResume.workExperience.length} work experience(s)</p>
-                )}
-                {parsedResume.education && parsedResume.education.length > 0 && (
-                  <p>• Found {parsedResume.education.length} education entry(s)</p>
-                )}
-                {parsedResume.skills && parsedResume.skills.length > 0 && (
-                  <p>• Found {parsedResume.skills.length} skill(s)</p>
-                )}
-                {parsedResume.name && (
-                  <p>• Name: {parsedResume.name}</p>
-                )}
-                {parsedResume.email && (
-                  <p>• Email: {parsedResume.email}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Action buttons */}
-          <div className="space-y-3">
-            <Button
-              onClick={handleContinue}
-              className="w-full rounded-full h-12 text-base font-semibold bg-accent text-accent-foreground hover:bg-accent/90 disabled:bg-accent/50"
-              disabled={status === 'uploading' || status === 'idle'}
-            >
-              {status === 'error' ? 'Try Again' : 'Continue'}
-              {status === 'success' && <ChevronRight className="w-5 h-5 ml-2" />}
-            </Button>
-
-            {status === 'error' && (
-              <Button
-                onClick={handleRetry}
-                variant="outline"
-                className="w-full rounded-full h-12 text-base font-semibold"
+    <WorldAppLayout>
+      <div className="p-4">
+        <Card className="w-full max-w-md mx-auto border-none shadow-none">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-headline">Upload Your CV</CardTitle>
+            <CardDescription>
+              Let's start by uploading your resume. We accept PDF or DOCX files.
+              {isConnectedToWorldApp && ' (World App Connected)'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <label
+                htmlFor="cv-upload"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'border-primary/30 bg-primary/5 hover:bg-primary/10'
+                  } ${status === 'uploading' ? 'pointer-events-none' : ''}`}
               >
-                Choose Different File
-              </Button>
-            )}
-          </div>
+                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                  {status === 'idle' && <UploadCloud className="w-10 h-10 mb-3 text-primary" />}
+                  {status === 'uploading' && <Loader2 className="w-10 h-10 mb-3 text-primary animate-spin" />}
+                  {status === 'success' && <FileCheck className="w-10 h-10 mb-3 text-green-500" />}
+                  {status === 'error' && <FileX className="w-10 h-10 mb-3 text-red-500" />}
 
-          {/* Upload progress indicators */}
-          {status === 'uploading' && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Processing...</span>
-                <span className="text-muted-foreground">Please wait</span>
+                  <p className="mb-1 text-sm text-muted-foreground">
+                    {status === 'idle' && <><span className="font-semibold text-primary">Click to upload</span> or drag and drop</>}
+                    {status === 'uploading' && 'Uploading and parsing...'}
+                    {status === 'success' && 'Upload Complete!'}
+                    {status === 'error' && 'Upload Failed. Try again.'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {status === 'idle' && 'PDF or DOCX (MAX. 5MB)'}
+                    {fileName && (status === 'uploading' || status === 'success' || status === 'error') && fileName}
+                  </p>
+                </div>
+                <input
+                  id="cv-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.docx"
+                  onChange={handleInputChange}
+                  disabled={status === 'uploading'}
+                />
+              </label>
+            </motion.div>
+
+            {/* Error display */}
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive" />
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+            )}
+
+            {/* Success info */}
+            {status === 'success' && parsedResume && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileCheck className="w-4 h-4 text-green-600" />
+                  <p className="text-sm font-medium text-green-800">Resume parsed successfully!</p>
+                </div>
+                <div className="text-xs text-green-700 space-y-1">
+                  {parsedResume.workExperience && parsedResume.workExperience.length > 0 && (
+                    <p>• Found {parsedResume.workExperience.length} work experience(s)</p>
+                  )}
+                  {parsedResume.education && parsedResume.education.length > 0 && (
+                    <p>• Found {parsedResume.education.length} education entry(s)</p>
+                  )}
+                  {parsedResume.skills && parsedResume.skills.length > 0 && (
+                    <p>• Found {parsedResume.skills.length} skill(s)</p>
+                  )}
+                  {parsedResume.name && (
+                    <p>• Name: {parsedResume.name}</p>
+                  )}
+                  {parsedResume.email && (
+                    <p>• Email: {parsedResume.email}</p>
+                  )}
+                </div>
               </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="space-y-3">
+              <Button
+                onClick={handleContinue}
+                className="w-full rounded-full h-12 text-base font-semibold bg-accent text-accent-foreground hover:bg-accent/90 disabled:bg-accent/50"
+                disabled={status === 'uploading' || status === 'idle'}
+              >
+                {status === 'error' ? 'Try Again' : 'Continue'}
+                {status === 'success' && <ChevronRight className="w-5 h-5 ml-2" />}
+              </Button>
+
+              {status === 'error' && (
+                <Button
+                  onClick={handleRetry}
+                  variant="outline"
+                  className="w-full rounded-full h-12 text-base font-semibold"
+                >
+                  Choose Different File
+                </Button>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+
+            {/* Upload progress indicators */}
+            {status === 'uploading' && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Processing...</span>
+                  <span className="text-muted-foreground">Please wait</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </WorldAppLayout>
   );
 }

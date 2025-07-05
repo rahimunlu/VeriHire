@@ -61,7 +61,7 @@ export default function VerifyHomePage() {
           <AvatarFallback>{verifier.name.charAt(0)}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-xl font-bold font-headline">Welcome, {verifier.name}!</h1>
+          <h1 className="text-xl font-bold font-headline">Welcome!</h1>
           <p className="text-sm text-muted-foreground">Your Verifier Dashboard</p>
         </div>
       </div>

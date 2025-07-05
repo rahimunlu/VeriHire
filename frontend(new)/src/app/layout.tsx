@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Inter } from 'next/font/google'
+import { MiniKitProvider } from '@/components/minikit-provider';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -10,8 +11,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "VeriHire",
-  description: "Your Verified Career on World Chain",
+  title: "VeriHire - World Mini App",
+  description: "Your Verified Career on World Chain - World Mini App",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -22,10 +24,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-body antialiased`}>
-        <div className="relative w-full max-w-md mx-auto min-h-dvh bg-background shadow-2xl">
-          {children}
-        </div>
-        <Toaster />
+        <MiniKitProvider>
+          <div className="relative w-full max-w-md mx-auto min-h-dvh bg-background shadow-2xl">
+            {children}
+          </div>
+          <Toaster />
+        </MiniKitProvider>
       </body>
     </html>
   );

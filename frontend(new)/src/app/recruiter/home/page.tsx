@@ -55,7 +55,7 @@ export default function RecruiterHomePage() {
             <AvatarFallback>{recruiter.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-xl font-bold font-headline">Welcome, {recruiter.name}!</h1>
+            <h1 className="text-xl font-bold font-headline">Welcome!</h1>
             <p className="text-sm text-muted-foreground">Recruiter Dashboard</p>
           </div>
         </div>

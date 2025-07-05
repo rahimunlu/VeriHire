@@ -1,0 +1,21 @@
+{
+  "name": "VeriHire",
+  "short_name": "VeriHire",
+  "description": "Your Verified Career on World Chain",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "business", "utilities"],
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "scope": "/",
+  "id": "verihire-world-mini-app"
+}

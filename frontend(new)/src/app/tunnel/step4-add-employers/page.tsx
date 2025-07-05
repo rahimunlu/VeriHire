@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { ChevronRight, Linkedin, Mail, Shield, AlertCircle, CheckCircle, Loader2, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useWorldIdVerification } from "@/hooks/use-world-id-verification";
+import { WorldAppLayout } from "@/components/world-app-layout";
 
 interface WorkExperience {
   company?: string;
@@ -28,6 +30,7 @@ interface VerificationRequest {
 
 export default function AddEmployersStep() {
   const router = useRouter();
+  const { isVerified, nullifier, isLoading: verificationLoading, isConnectedToWorldApp } = useWorldIdVerification();
   const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([]);
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -97,9 +100,8 @@ export default function AddEmployersStep() {
     setSentRequests(0);
 
     try {
-      // Get nullifier hash from localStorage
-      const nullifierHash = localStorage.getItem('worldId_nullifier');
-      if (!nullifierHash) {
+      // Get nullifier hash from World ID verification
+      if (!nullifier) {
         throw new Error('Please verify your identity first');
       }
 
@@ -115,7 +117,7 @@ export default function AddEmployersStep() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              candidateId: nullifierHash,
+              candidateId: nullifier,
               candidateName,
               candidateEmail,
               employerEmail: request.managerEmail,
@@ -169,185 +171,218 @@ export default function AddEmployersStep() {
 
   if (error && workExperiences.length === 0) {
     return (
-      <div className="p-4">
-        <Card className="w-full max-w-md mx-auto border-none shadow-none">
-          <CardContent className="pt-6">
-            <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5 text-destructive" />
-                <p className="font-semibold text-destructive">Error</p>
+      <WorldAppLayout>
+        <div className="p-4">
+          <Card className="w-full max-w-md mx-auto border-none shadow-none">
+            <CardContent className="pt-6">
+              <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                  <p className="font-semibold text-destructive">Error</p>
+                </div>
+                <p className="text-sm text-destructive">{error}</p>
               </div>
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-            <Button
-              onClick={() => router.push('/tunnel/step3-parse-cv')}
-              className="w-full mt-4 rounded-full h-12 text-base font-semibold"
-            >
-              Go Back to Confirm CV
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+              <Button
+                onClick={() => router.push('/tunnel/step3-parse-cv')}
+                className="w-full mt-4 rounded-full h-12 text-base font-semibold"
+              >
+                Go Back to Confirm CV
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </WorldAppLayout>
     );
   }
 
   if (success) {
     return (
-      <div className="p-4">
-        <Card className="w-full max-w-md mx-auto border-none shadow-none">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-white" />
-            </div>
-            <CardTitle className="text-2xl font-headline text-green-600">Verification Requests Sent!</CardTitle>
-            <CardDescription>
-              Magic links have been sent to {sentRequests} manager(s). Redirecting to verification tracker...
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Loader2 className="w-4 h-4 animate-spin mx-auto text-primary" />
-          </CardContent>
-        </Card>
-      </div>
+      <WorldAppLayout>
+        <div className="p-4">
+          <Card className="w-full max-w-md mx-auto border-none shadow-none">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-white" />
+              </div>
+              <CardTitle className="text-2xl font-headline text-green-600">Verification Requests Sent!</CardTitle>
+              <CardDescription>
+                Magic links have been sent to {sentRequests} manager(s). Redirecting to verification tracker...
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Loader2 className="w-4 h-4 animate-spin mx-auto text-primary" />
+            </CardContent>
+          </Card>
+        </div>
+      </WorldAppLayout>
+    );
+  }
+
+  // Show loading state if World ID verification is still loading
+  if (verificationLoading) {
+    return (
+      <WorldAppLayout>
+        <div className="p-4">
+          <Card className="w-full max-w-md mx-auto border-none shadow-none">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </WorldAppLayout>
     );
   }
 
   return (
-    <div className="p-4">
-      <Card className="w-full max-w-md mx-auto border-none shadow-none">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-headline">Employer Information</CardTitle>
-          <CardDescription>
-            Provide verifier details for each role. We'll send them a secure verification link.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {verificationRequests.map((request, index) => (
-            <Card key={index} className="p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-bold text-sm">{request.position || 'Position'}</p>
-                  <p className="text-xs text-muted-foreground">{request.company || 'Company'}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {request.startDate && request.endDate
-                      ? `${request.startDate} - ${request.endDate}`
-                      : (request.startDate || request.endDate || 'Dates not specified')}
-                  </p>
-                </div>
-              </div>
+    <WorldAppLayout>
+      <div className="p-4">
+        <Card className="w-full max-w-md mx-auto border-none shadow-none">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-headline">Employer Information</CardTitle>
+            <CardDescription>
+              Provide verifier details for each role. We'll send them a secure verification link.
+            </CardDescription>
 
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor={`manager-name-${index}`} className="text-xs">Manager Name</Label>
-                  <Input
-                    id={`manager-name-${index}`}
-                    value={request.managerName || ''}
-                    onChange={(e) => handleRequestUpdate(index, 'managerName', e.target.value)}
-                    placeholder="John Smith"
-                    className="h-9"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor={`manager-email-${index}`} className="text-xs">Manager Email *</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id={`manager-email-${index}`}
-                      type="email"
-                      value={request.managerEmail}
-                      onChange={(e) => handleRequestUpdate(index, 'managerEmail', e.target.value)}
-                      placeholder="manager@company.com"
-                      className="pl-10 h-9"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor={`manager-linkedin-${index}`} className="text-xs">Manager LinkedIn (Optional)</Label>
-                  <div className="relative">
-                    <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id={`manager-linkedin-${index}`}
-                      value={request.managerLinkedIn || ''}
-                      onChange={(e) => handleRequestUpdate(index, 'managerLinkedIn', e.target.value)}
-                      placeholder="https://linkedin.com/in/manager"
-                      className="pl-10 h-9"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor={`manager-worldid-${index}`} className="text-xs">Manager World ID</Label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id={`manager-worldid-${index}`}
-                      value=""
-                      // onChange={(e) => handleRequestUpdate(index, 'managerWorldId', e.target.value)} 
-                      placeholder="Enter World ID"
-                      className="pl-10 h-9"
-                    />
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))}
-
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-destructive" />
-                <p className="text-sm text-destructive">{error}</p>
+            {/* World ID Status Indicator */}
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  {isConnectedToWorldApp ? 'Verified via World App' : 'World ID Verified'}
+                </span>
               </div>
             </div>
-          )}
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {verificationRequests.map((request, index) => (
+              <Card key={index} className="p-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">{request.position || 'Position'}</p>
+                    <p className="text-xs text-muted-foreground">{request.company || 'Company'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {request.startDate && request.endDate
+                        ? `${request.startDate} - ${request.endDate}`
+                        : (request.startDate || request.endDate || 'Dates not specified')}
+                    </p>
+                  </div>
+                </div>
 
-          <div className="space-y-3">
-            <Button
-              onClick={handleSendRequests}
-              disabled={isLoading}
-              className="w-full rounded-full h-12 text-base font-semibold bg-accent text-accent-foreground hover:bg-accent/90 disabled:bg-accent/50"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Sending Requests... ({sentRequests}/{verificationRequests.filter(r => r.managerEmail).length})
-                </>
-              ) : (
-                <>
-                  <Mail className="w-4 h-4 mr-2" />
-                  Send Verification Requests
-                </>
-              )}
-            </Button>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor={`manager-name-${index}`} className="text-xs">Manager Name</Label>
+                    <Input
+                      id={`manager-name-${index}`}
+                      value={request.managerName || ''}
+                      onChange={(e) => handleRequestUpdate(index, 'managerName', e.target.value)}
+                      placeholder="John Smith"
+                      className="h-9"
+                    />
+                  </div>
 
-            <Button
-              onClick={handleSkip}
-              variant="outline"
-              className="w-full rounded-full h-12 text-base font-semibold"
-              disabled={isLoading}
-            >
-              Skip Verification
-              <ChevronRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
+                  <div>
+                    <Label htmlFor={`manager-email-${index}`} className="text-xs">Manager Email *</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id={`manager-email-${index}`}
+                        type="email"
+                        value={request.managerEmail}
+                        onChange={(e) => handleRequestUpdate(index, 'managerEmail', e.target.value)}
+                        placeholder="manager@company.com"
+                        className="pl-10 h-9"
+                      />
+                    </div>
+                  </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-blue-800 text-sm">
-              🔐 <strong>Secure Process:</strong> We send magic links to managers for one-click verification. No passwords or accounts required.
+                  <div>
+                    <Label htmlFor={`manager-linkedin-${index}`} className="text-xs">Manager LinkedIn (Optional)</Label>
+                    <div className="relative">
+                      <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id={`manager-linkedin-${index}`}
+                        value={request.managerLinkedIn || ''}
+                        onChange={(e) => handleRequestUpdate(index, 'managerLinkedIn', e.target.value)}
+                        placeholder="https://linkedin.com/in/manager"
+                        className="pl-10 h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor={`manager-worldid-${index}`} className="text-xs">Manager World ID</Label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id={`manager-worldid-${index}`}
+                        value=""
+                        // onChange={(e) => handleRequestUpdate(index, 'managerWorldId', e.target.value)} 
+                        placeholder="Enter World ID"
+                        className="pl-10 h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive" />
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <Button
+                onClick={handleSendRequests}
+                disabled={isLoading}
+                className="w-full rounded-full h-12 text-base font-semibold bg-accent text-accent-foreground hover:bg-accent/90 disabled:bg-accent/50"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending Requests... ({sentRequests}/{verificationRequests.filter(r => r.managerEmail).length})
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4 mr-2" />
+                    Send Verification Requests
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={handleSkip}
+                variant="outline"
+                className="w-full rounded-full h-12 text-base font-semibold"
+                disabled={isLoading}
+              >
+                Skip Verification
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-blue-800 text-sm">
+                🔐 <strong>Secure Process:</strong> We send magic links to managers for one-click verification. No passwords or accounts required.
+              </p>
+            </div>
+
+            <p className="text-xs text-center text-muted-foreground">
+              * Required fields • We'll only contact managers you specify
             </p>
-          </div>
-
-          <p className="text-xs text-center text-muted-foreground">
-            * Required fields • We'll only contact managers you specify
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
+    </WorldAppLayout>
   );
 }
 

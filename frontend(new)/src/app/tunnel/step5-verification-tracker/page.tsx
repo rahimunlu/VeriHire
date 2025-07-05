@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Pie, Cell, Tooltip } from 'recharts';
+import { useWorldIdVerification } from '@/hooks/use-world-id-verification';
+import { WorldAppLayout } from '@/components/world-app-layout';
 
 const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false });
 const PieChart = dynamic(() => import('recharts').then(mod => mod.PieChart), { ssr: false });
@@ -46,6 +48,7 @@ const user = {
 
 export default function VerificationTrackerStep() {
   const router = useRouter();
+  const { isVerified, nullifier, isLoading: verificationLoading, isConnectedToWorldApp } = useWorldIdVerification();
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([]);
   const [statusData, setStatusData] = useState<CandidateStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,12 +63,12 @@ export default function VerificationTrackerStep() {
         setIsRefreshing(true);
       }
 
-      const nullifierHash = localStorage.getItem('worldId_nullifier');
-      if (!nullifierHash) {
+      // Get nullifier from World ID verification
+      if (!nullifier) {
         throw new Error('Please verify your identity first');
       }
 
-      const response = await fetch(`/api/candidate/status?candidateId=${nullifierHash}`);
+      const response = await fetch(`/api/candidate/status?candidateId=${nullifier}`);
       if (!response.ok) {
         throw new Error('Failed to fetch verification status');
       }
@@ -96,15 +99,17 @@ export default function VerificationTrackerStep() {
       }
     }
 
-    // Initial fetch
-    fetchVerificationStatus();
-    setIsLoading(false);
+    // Only fetch if nullifier is available
+    if (nullifier) {
+      fetchVerificationStatus();
+      setIsLoading(false);
 
-    // Set up polling every 10 seconds
-    const interval = setInterval(() => fetchVerificationStatus(), 10000);
+      // Set up polling every 10 seconds
+      const interval = setInterval(() => fetchVerificationStatus(), 10000);
 
-    return () => clearInterval(interval);
-  }, []);
+      return () => clearInterval(interval);
+    }
+  }, [nullifier]);
 
   // Calculate verification statistics
   const getVerificationStats = () => {
@@ -210,177 +215,208 @@ export default function VerificationTrackerStep() {
     fetchVerificationStatus(true);
   };
 
+  // Show loading state if World ID verification is still loading
+  if (verificationLoading) {
+    return (
+      <WorldAppLayout>
+        <div className="p-4">
+          <Card className="w-full max-w-md mx-auto border-none shadow-none">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </WorldAppLayout>
+    );
+  }
+
   if (error && !statusData) {
     return (
-      <div className="p-4">
-        <Card className="w-full max-w-md mx-auto border-none shadow-none">
-          <CardContent className="pt-6">
-            <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5 text-destructive" />
-                <p className="font-semibold text-destructive">Error</p>
+      <WorldAppLayout>
+        <div className="p-4">
+          <Card className="w-full max-w-md mx-auto border-none shadow-none">
+            <CardContent className="pt-6">
+              <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                  <p className="font-semibold text-destructive">Error</p>
+                </div>
+                <p className="text-sm text-destructive">{error}</p>
               </div>
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-            <Button
-              onClick={() => router.push('/tunnel/step4-add-employers')}
-              className="w-full mt-4 rounded-full h-12 text-base font-semibold"
-            >
-              Go Back to Add Employers
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+              <Button
+                onClick={() => router.push('/tunnel/step4-add-employers')}
+                className="w-full mt-4 rounded-full h-12 text-base font-semibold"
+              >
+                Go Back to Add Employers
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </WorldAppLayout>
     );
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <Card className="w-full max-w-md mx-auto border-none shadow-none">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-headline">Verification Tracker</CardTitle>
-          <CardDescription>
-            Track the status of your employment verification requests in real-time.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Overview Chart */}
-          {verificationData.length > 0 && (
-            <Card>
-              <CardHeader className="p-3 pb-0">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-sm font-medium">Overview</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRefresh}
-                    disabled={isRefreshing}
-                    className="h-8 w-8 p-0"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0 flex justify-center items-center">
-                <div className="h-[120px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={verificationData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={40}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {verificationData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+    <WorldAppLayout>
+      <div className="p-4 space-y-4">
+        <Card className="w-full max-w-md mx-auto border-none shadow-none">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-headline">Verification Tracker</CardTitle>
+            <CardDescription>
+              Track the status of your employment verification requests in real-time.
+            </CardDescription>
 
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-3 gap-2">
-            <Card className="p-3">
-              <div className="text-center">
-                <div className="text-lg font-bold text-green-600">{stats.verified}</div>
-                <div className="text-xs text-muted-foreground">Verified</div>
+            {/* World ID Status Indicator */}
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  {isConnectedToWorldApp ? 'Verified via World App' : 'World ID Verified'}
+                </span>
               </div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-center">
-                <div className="text-lg font-bold text-yellow-600">{stats.pending}</div>
-                <div className="text-xs text-muted-foreground">Pending</div>
-              </div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-center">
-                <div className="text-lg font-bold text-red-600">{stats.rejected}</div>
-                <div className="text-xs text-muted-foreground">Rejected</div>
-              </div>
-            </Card>
-          </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Overview Chart */}
+            {verificationData.length > 0 && (
+              <Card>
+                <CardHeader className="p-3 pb-0">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-sm font-medium">Overview</CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRefresh}
+                      disabled={isRefreshing}
+                      className="h-8 w-8 p-0"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 flex justify-center items-center">
+                  <div className="h-[120px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={verificationData}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={40}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {verificationData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Individual Request Status */}
-          {verificationRequests.length > 0 && (
-            <Card>
-              <CardHeader className="p-3 pb-0">
-                <CardTitle className="text-sm font-medium">Request Status</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 space-y-2">
-                {verificationRequests.map((request, index) => {
-                  const status = getRequestStatus(request.company, request.position);
-                  return (
-                    <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={`https://logo.clearbit.com/${request.company.toLowerCase()}.com`} />
-                          <AvatarFallback className="text-xs">
-                            {request.company.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">{request.position}</p>
-                          <p className="text-xs text-muted-foreground">{request.company}</p>
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-3 gap-2">
+              <Card className="p-3">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-600">{stats.verified}</div>
+                  <div className="text-xs text-muted-foreground">Verified</div>
+                </div>
+              </Card>
+              <Card className="p-3">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-yellow-600">{stats.pending}</div>
+                  <div className="text-xs text-muted-foreground">Pending</div>
+                </div>
+              </Card>
+              <Card className="p-3">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-red-600">{stats.rejected}</div>
+                  <div className="text-xs text-muted-foreground">Rejected</div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Individual Request Status */}
+            {verificationRequests.length > 0 && (
+              <Card>
+                <CardHeader className="p-3 pb-0">
+                  <CardTitle className="text-sm font-medium">Request Status</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-2">
+                  {verificationRequests.map((request, index) => {
+                    const status = getRequestStatus(request.company, request.position);
+                    return (
+                      <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage src={`https://logo.clearbit.com/${request.company.toLowerCase()}.com`} />
+                            <AvatarFallback className="text-xs">
+                              {request.company.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{request.position}</p>
+                            <p className="text-xs text-muted-foreground">{request.company}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(status)}
+                          <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(status)}`}>
+                            {getStatusText(status)}
+                          </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(status)}
-                        <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(status)}`}>
-                          {getStatusText(status)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Last Updated */}
-          {lastUpdated && (
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">
-                Last updated: {lastUpdated.toLocaleTimeString()}
+            {/* Last Updated */}
+            {lastUpdated && (
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </p>
+              </div>
+            )}
+
+            {/* Continue Button */}
+            <Button
+              onClick={handleContinue}
+              className="w-full rounded-full h-12 text-base font-semibold bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              Continue to Online Presence
+              <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
+
+            {/* Information */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-blue-800 text-sm">
+                ⏱️ <strong>Real-time Updates:</strong> This page automatically refreshes every 10 seconds.
+                You can continue to the next step anytime.
               </p>
             </div>
-          )}
 
-          {/* Continue Button */}
-          <Button
-            onClick={handleContinue}
-            className="w-full rounded-full h-12 text-base font-semibold bg-accent text-accent-foreground hover:bg-accent/90"
-          >
-            Continue to Online Presence
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-
-          {/* Information */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-blue-800 text-sm">
-              ⏱️ <strong>Real-time Updates:</strong> This page automatically refreshes every 10 seconds.
-              You can continue to the next step anytime.
-            </p>
-          </div>
-
-          {/* No Requests Message */}
-          {verificationRequests.length === 0 && (
-            <div className="text-center py-8">
-              <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No verification requests sent</p>
-              <p className="text-xs text-muted-foreground mt-2">
-                You can continue to the next step or go back to add employers
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            {/* No Requests Message */}
+            {verificationRequests.length === 0 && (
+              <div className="text-center py-8">
+                <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No verification requests sent</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  You can continue to the next step or go back to add employers
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </WorldAppLayout>
   );
 }
