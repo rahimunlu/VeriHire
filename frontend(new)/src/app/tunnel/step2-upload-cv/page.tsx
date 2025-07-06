@@ -170,7 +170,7 @@ export default function UploadCvStep() {
                   id="cv-upload"
                   type="file"
                   className="hidden"
-                  accept=".pdf,.docx"
+                  accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   onChange={handleInputChange}
                   disabled={status === 'uploading'}
                 />
