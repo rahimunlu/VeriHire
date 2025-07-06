@@ -32,13 +32,20 @@ export default function WorldIdStep() {
   useEffect(() => {
     setMounted(true);
 
+    // If user is in World App, they're already verified - redirect immediately
+    if (isConnected) {
+      console.log('User is in World App - automatically verified');
+      router.push('/tunnel/step2-upload-cv');
+      return;
+    }
+
     // If already verified, redirect to next step after a delay
     if (isVerified) {
       setTimeout(() => {
         router.push('/tunnel/step2-upload-cv');
       }, 1500);
     }
-  }, [isVerified, router]);
+  }, [isVerified, router, isConnected]);
 
   if (!mounted) {
     return (

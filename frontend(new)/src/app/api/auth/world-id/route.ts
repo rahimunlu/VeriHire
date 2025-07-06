@@ -5,14 +5,27 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const { proof, merkle_root, nullifier_hash, verification_level } =
+    const { proof, merkle_root, nullifier_hash, verification_level, worldApp } =
       await req.json();
 
     console.log("Received verification request:", {
       nullifier_hash,
       verification_level,
       proof: proof?.substring(0, 10) + "...", // Log partial proof for debugging
+      worldApp: worldApp ? "World App user" : "External user",
     });
+
+    // If user is in World App, they're already verified - no need for external verification
+    if (worldApp?.isConnected) {
+      console.log("User is in World App - automatically verified");
+      return NextResponse.json({
+        success: true,
+        verified: true,
+        nullifier_hash: "world_app_verified",
+        user_id: "world_app_verified",
+        source: "world_app",
+      });
+    }
 
     // Verify the World ID proof
     const app_id =

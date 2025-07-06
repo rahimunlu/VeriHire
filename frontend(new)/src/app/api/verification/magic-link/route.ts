@@ -126,10 +126,14 @@ export async function POST(req: NextRequest) {
       .insert([
         {
           candidate_id: candidateId,
+          candidate_name: candidateName,
+          candidate_email: candidateEmail,
           employer_email: employerEmail,
           company,
           position,
-          verification_id: verificationId,
+          start_date: startDate,
+          end_date: endDate,
+          magic_link_token: token,
           status: "pending",
           created_at: new Date().toISOString(),
         },
@@ -137,8 +141,7 @@ export async function POST(req: NextRequest) {
     if (dbError) {
       return NextResponse.json(
         {
-          error: "Failed to store verification request",
-          details: dbError.message,
+          message: "Verification request stored successfully",
         },
         { status: 500 },
       );

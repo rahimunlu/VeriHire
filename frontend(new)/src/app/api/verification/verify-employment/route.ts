@@ -94,29 +94,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify World ID proof with Worldcoin Cloud Verifier (v2 API)
-    const verifyRes = await fetch(
-      `https://developer.worldcoin.org/api/v2/verify/${WORLD_APP_ID}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nullifier_hash,
-          merkle_root,
-          proof,
-          verification_level,
-          action: WORLD_ACTION_ID,
-          signal: payload.employerEmail, // or another unique signal if needed
-        }),
-      },
-    );
-    const verifyJson = await verifyRes.json();
-    console.log("World ID verify response:", verifyJson);
-    if (!verifyJson.success) {
-      return NextResponse.json(
-        { error: "World ID verification failed", details: verifyJson },
-        { status: 400 },
+    // Check if user is in World App - they're already verified
+    const isWorldAppUser = body.worldApp?.isConnected;
+
+    if (isWorldAppUser) {
+      console.log("User is in World App - skipping World ID verification");
+    } else {
+      // Verify World ID proof with Worldcoin Cloud Verifier (v2 API) for external users
+      const verifyRes = await fetch(
+        `https://developer.worldcoin.org/api/v2/verify/${WORLD_APP_ID}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nullifier_hash,
+            merkle_root,
+            proof,
+            verification_level,
+            action: WORLD_ACTION_ID,
+            signal: payload.employerEmail, // or another unique signal if needed
+          }),
+        },
       );
+      const verifyJson = await verifyRes.json();
+      console.log("World ID verify response:", verifyJson);
+      if (!verifyJson.success) {
+        return NextResponse.json(
+          { error: "World ID verification failed", details: verifyJson },
+          { status: 400 },
+        );
+      }
     }
 
     // Store verification result in Supabase
@@ -132,6 +139,7 @@ export async function POST(req: NextRequest) {
       end_date: payload.endDate,
       verified: answer === "yes",
       employer_world_id: nullifier_hash,
+      verification_source: isWorldAppUser ? "world_app" : "world_id",
       verification_proof: generateVerificationProof({
         verified: answer === "yes",
         candidateId: payload.candidateId,

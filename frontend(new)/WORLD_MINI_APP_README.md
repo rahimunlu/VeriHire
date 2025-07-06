@@ -203,9 +203,16 @@ frontend(new)/
    - Ensure user has sufficient balance
 
 3. **Safe Area Issues**:
+
    - Use WorldAppLayout component
    - Check safeAreaInsets values
    - Test on different devices
+
+4. **World ID Verification Issues**:
+   - **"Verification Rejected"**: For World Mini Apps, explicit World ID verification is not needed
+   - **Email Verification Loop**: Users in World App are automatically verified - no separate action required
+   - **Action Not Found**: Mini Apps don't need specific World ID actions - verification is automatic
+   - **App ID Issues**: For mini apps, you can use the default staging app ID
 
 ### Debug Mode
 
@@ -213,6 +220,22 @@ frontend(new)/
 // Enable debug logging
 console.log("World App detected:", !!window.WorldApp);
 console.log("MiniKit connected:", isConnected);
+console.log("World ID verified:", isWorldIdVerified);
+```
+
+### World ID Mini App Configuration
+
+For World Mini Apps, the verification process is automatic:
+
+1. **No Manual World ID Required**: Users are automatically verified when using World App
+2. **No Action Parameter**: Mini apps don't need specific World ID actions
+3. **Automatic Redirect**: Users should skip the World ID verification step
+4. **Environment Variables**: Can use default staging values for mini apps
+
+```bash
+# .env.local (for mini apps)
+NEXT_PUBLIC_WORLD_APP_ID=app_staging_test
+WORLD_ACTION_ID=trust-match-verification
 ```
 
 ## Support

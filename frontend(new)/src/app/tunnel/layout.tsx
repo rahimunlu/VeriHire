@@ -1,4 +1,3 @@
-
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -9,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 const steps = [
   'step2-upload-cv',
   'step3-parse-cv',
+  'step3a-collect-email',
   'step4-add-employers',
   'step5-verification-tracker',
   'step5a-add-links',
@@ -27,7 +27,7 @@ export default function TunnelLayout({ children }: { children: React.ReactNode }
   const handleBack = () => {
     router.back();
   };
-  
+
   const isFinalStep = currentStep === totalSteps;
   const isFirstStep = currentStep === 1;
 
@@ -47,9 +47,9 @@ export default function TunnelLayout({ children }: { children: React.ReactNode }
         </h1>
         <div className="w-10 h-10" />
       </header>
-      
+
       {!isFinalStep && (
-        <Progress value={(currentStep / (totalSteps-1)) * 100} className="h-1 w-full rounded-none" />
+        <Progress value={(currentStep / (totalSteps - 1)) * 100} className="h-1 w-full rounded-none" />
       )}
 
       <main className="flex-grow">

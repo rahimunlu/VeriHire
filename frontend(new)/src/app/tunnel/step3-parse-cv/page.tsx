@@ -133,7 +133,12 @@ export default function ParseCvStep() {
     localStorage.setItem('parsedResume', JSON.stringify(updatedResume));
     localStorage.setItem('confirmedWorkExperiences', JSON.stringify(validExperiences));
 
-    router.push('/tunnel/step4-add-employers');
+    // Check if email is available, if not redirect to email collection
+    if (!updatedResume.email) {
+      router.push('/tunnel/step3a-collect-email');
+    } else {
+      router.push('/tunnel/step4-add-employers');
+    }
   };
 
   if (isLoading) {

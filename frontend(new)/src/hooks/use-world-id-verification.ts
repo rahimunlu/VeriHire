@@ -33,6 +33,10 @@ export function useWorldIdVerification(
   useEffect(() => {
     // If user is inside World App, they're already verified - no need to redirect
     if (isConnected) {
+      // For World Mini Apps, the user is automatically verified
+      if (!isWorldIdVerified) {
+        setWorldIdVerified(true, "world_app_verified");
+      }
       return;
     }
 
@@ -55,6 +59,7 @@ export function useWorldIdVerification(
     redirectTo,
     showToast,
     isConnected,
+    setWorldIdVerified,
   ]);
 
   const verifyWorldId = (nullifier: string) => {
